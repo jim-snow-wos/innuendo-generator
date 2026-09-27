@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Material Innuendo Generator</title>
+  <style>
+    :root {
+      --bg:#171717;
+      --panel:#232323;
+      --text:#f4f4f4;
+      --muted:#aaa;
+      --accent:#ff6b4a;
+      --line:#3a3a3a;
+    }
+
+    * { box-sizing:border-box; }
+
+    body {
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+
+    main {
+      max-width:820px;
+      margin:auto;
+      padding:42px 20px 60px;
+    }
+
+    h1 {
+      font-size:clamp(28px,6vw,46px);
+      margin:0 0 8px;
+    }
+
+    .sub {
+      color:var(--muted);
+      margin:0 0 28px;
+    }
+
+    button {
+      display:block;
+      width:100%;
+      border:0;
+      border-radius:12px;
+      background:var(--accent);
+      color:#fff;
+      font-size:20px;
+      font-weight:700;
+      padding:17px 20px;
+      cursor:pointer;
+    }
+
+    button:disabled {
+      opacity:.6;
+      cursor:wait;
+    }
+
+    #results {
+      display:grid;
+      gap:16px;
+      margin-top:28px;
+    }
+
+    section {
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:18px 20px;
+    }
+
+    h2 {
+      margin:0 0 12px;
+      font-size:22px;
+    }
+
+    ol {
+      margin:0;
+      padding-left:28px;
+    }
+
+    li {
+      padding:6px 0;
+      line-height:1.35;
+    }
+
+    .message {
+      text-align:center;
+      color:var(--muted);
+      padding:30px 10px;
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <h1>Material Innuendo Generator</h1>
+  <p class="sub">20 cheeky slogans. One click. No questions asked.</p>
+
+  <button id="generate">Generate Innuendos</button>
+
+  <div id="results">
+    <div class="message">Press the button to get your first load.</div>
+  </div>
+</main>
+
+<script>
+const WORKER_URL =
+  "https://innuendo-generator-api.jim-snow-wos.workers.dev/";
+
+const button = document.getElementById("generate");
+const results = document.getElementById("results");
+
+button.addEventListener("click", async () => {
+  button.disabled = true;
+  button.textContent = "Generating...";
+  results.innerHTML = '<div class="message">Getting something hot and fresh...</div>';
+
+  try {
+    const response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "The generator failed.");
+    }
+
+    displayResults(data.text);
+
+  } catch (error) {
+    results.innerHTML =
+      '<div class="message">Sorry — something went wrong.<br>' +
+      escapeHtml(error.message) +
+      '</div>';
+  }
+
+  button.disabled = false;
+  button.textContent = "Generate Innuendos";
+});
+
+function displayResults(text) {
+  results.innerHTML = "";
+
+  const categories = ["MEAT", "WOOD", "COAL", "IRON"];
+
+  for (const category of categories) {
+    const section = document.createElement("section");
+    const heading = document.createElement("h2");
+    const list = document.createElement("ol");
+
+    heading.textContent = category;
+
+    const block = extractCategory(text, category);
+
+    if (block.length === 0) {
+      const item = document.createElement("li");
+      item.textContent = "No slogans generated.";
+      list.appendChild(item);
+    } else {
+      for (const slogan of block.slice(0, 5)) {
+        const item = document.createElement("li");
+        item.textContent = slogan;
+        list.appendChild(item);
+      }
+    }
+
+    section.appendChild(heading);
+    section.appendChild(list);
+    results.appendChild(section);
+  }
+}
+
+function extractCategory(text, category) {
+  const categories = ["MEAT", "WOOD", "COAL", "IRON"];
+  const startIndex = text.indexOf(category);
+
+  if (startIndex === -1) return [];
+
+  let endIndex = text.length;
+
+  for (const nextCategory of categories) {
+    if (nextCategory === category) continue;
+
+    const i = text.indexOf(nextCategory, startIndex + category.length);
+
+    if (i !== -1 && i < endIndex) {
+      endIndex = i;
+    }
+  }
+
+  const block = text
+    .slice(startIndex + category.length, endIndex)
+    .trim();
+
+  return block
+    .split("\n")
+    .map(line =>
+      line
+        .replace(/^\s*\d+\.\s*/, "")
+        .trim()
+    )
+    .filter(line => line.length > 0);
+}
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>
+
+</body>
+</html>
